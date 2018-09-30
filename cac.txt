@@ -45,7 +45,7 @@ case class RescaleInfo(minX : Double, maxX : Double, minY : Double, maxY : Doubl
 
 class Kmeans extends Serializable{
   /** number of clusters */
-  def num_clusters = 10
+  def num_clusters = 16
   
   /** number of interations */
   def max_iterations = 50
@@ -136,7 +136,7 @@ class Kmeans extends Serializable{
   }
   
   /** Recursively run until converge (use @tailrec to optimize the tail recursive function) */
-  @tailrec final def kmeansRun(points: RDD[Point], centroids: Array[Point], iterationNum: Int = 1) : Array[Point] = {
+  @tailrec final def kmeansRun(points: RDD[Point], centroids: Array[Point], iterationNum: Int = 1) : (Array[Point], RDD[(Int, Point)]) = {
     val clustered_points = points.map(aPoint => {
       val idx = findClosestCentroid(aPoint, centroids)
       (idx, aPoint)
@@ -153,14 +153,14 @@ class Kmeans extends Serializable{
       total_distance += euclideanDistance(centroids(i), new_centroids(i))
     }
     if (iterationNum > max_iterations) {
-      return new_centroids
+      return (new_centroids, clustered_points)
     } else {
       kmeansRun(points, new_centroids, iterationNum+1)
     }
   }
 
-  /** after the algorithm we need to rescale the data back to original points */
-  def rescaling (scaled_centroids : Array[Point], rescaleInfo : RescaleInfo) : Array[Point] = {
+  /** rescale the centroids back to original coordinate */
+  def rescaling_centroids (scaled_centroids : Array[Point], rescaleInfo : RescaleInfo) : Array[Point] = {
     val org_centroids = scaled_centroids.map(p => {
       val org_x = p.x * (rescaleInfo.maxX - rescaleInfo.minX) + rescaleInfo.minX
       val org_y = p.y * (rescaleInfo.maxY - rescaleInfo.minY) + rescaleInfo.minY
@@ -170,12 +170,35 @@ class Kmeans extends Serializable{
     return org_centroids
   }
   
-  /** export to CSV */
-  def toCSV(centroids: Array[Point], filename: String) {
+  /** rescale all the points back to original coordinate (to plot later) */
+  def rescaling_points(clustered_points: RDD[(Int, Point)], rescaleInfo: RescaleInfo) : RDD[(Int, Point)] = {
+//    var res = Array[(Int, Point)]()
+    val org_points = clustered_points.map(point => {
+      val org_x = point._2.x * (rescaleInfo.maxX - rescaleInfo.minX) + rescaleInfo.minX
+      val org_y = point._2.y * (rescaleInfo.maxY - rescaleInfo.minY) + rescaleInfo.minY
+      val org_day = point._2.day * 6 + 1
+      (point._1, Point(org_x, org_y, org_day))
+    })
+    return org_points
+  }
+  
+  /** export centroids to CSV */
+  def toCSV_centroids(centroids: Array[Point], filename: String) {
     val header = Array("X", "Y", "Day")
     val rows = centroids.map(p => {
       Array(p.x.toString(), p.y.toString(), p.day.toString())
     })
+    val allRows = header +: rows
+    val csv = allRows.map(_.mkString(",")).mkString("\n")
+    new PrintWriter(filename) {write(csv); close()}
+  }
+  
+  /** export clustered points to CSV */
+  def toCSV_points(points: RDD[(Int, Point)], filename: String) {
+    val header = Array("Cluster", "X", "Y", "Day")
+    val rows = points.map(point => {
+      Array(point._1.toString(), point._2.x.toString(), point._2.y.toString(), point._2.day.toString())
+    }).collect()
     val allRows = header +: rows
     val csv = allRows.map(_.mkString(",")).mkString("\n")
     new PrintWriter(filename) {write(csv); close()}
@@ -221,19 +244,23 @@ object main extends Kmeans {
     println()
         
     println("-------------Run K-Means----------------")
-    val scaled_centroids = kmeansRun(scaled_points, randomCentroids)
+    val (scaled_centroids, clustered_points) = kmeansRun(scaled_points, randomCentroids)
     scaled_centroids.foreach(println)
     println()
     
     println("-------------Rescale----------------")
-    val rescaled_centroids = rescaling(scaled_centroids, rescale_info)
+    println("-------------Centroids---------------")
+    val rescaled_centroids = rescaling_centroids(scaled_centroids, rescale_info)
     rescaled_centroids.foreach(println)
+    println("-------------Points---------------")
+    val rescaled_clustered_points = rescaling_points(clustered_points, rescale_info)
+    rescaled_clustered_points.take(20).foreach(println)    
     println()
     
     println("-------------Export to CSV----------------")
-    toCSV(rescaled_centroids, "output/task5.csv")
-    println("Done!!!!!!!!!!!!!!!")
-    
+    toCSV_centroids(rescaled_centroids, "output/task5.csv")
+    toCSV_points(rescaled_clustered_points, "output/task5_clusteredPoints.csv")
+    println("!!!!!!!!!!!!!!!!!!!!Done!!!!!!!!!!!!!!!!!!!")
 
   }
 }
