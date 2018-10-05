@@ -4,7 +4,7 @@
 		module="dip2018-build"
 		revision="0.1.0-SNAPSHOT"
 		status="integration"
-		publication="20181005142610"
+		publication="20181005225657"
 		e:sbtVersion="1.0" e:scalaVersion="2.12"
 	>
 		<description>

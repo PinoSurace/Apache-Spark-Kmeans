@@ -46,6 +46,7 @@ import scala.util.Random
 import scala.collection.immutable.HashSet
 import scala.util.control.Breaks._
 import java.io.PrintWriter
+import org.apache.spark.sql.SaveMode
 
 //import org.apache.spark.sql.SQLContext.implicits._
 //import org.apache.spark.ml.feature.Imputer
@@ -359,7 +360,10 @@ object main extends App {
                    .withColumn("DOW_scaled",((col("dow") - min_DOW)/range_DOW))
   df_scaled.show()                              
                                 
-  
+/**
+ * Print function
+ * 
+ * */  
   
   
 /**
@@ -382,18 +386,25 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
      /**
       * Result written in csv file 
       * */     
-    kmModel.summary.predictions.select("X", "Y")
+    val xy_rescaled = kmModel.summary.predictions
+                              .groupBy("prediction")
+                              .agg((mean("X")*range_X + min_X).as("x"), (mean("Y")*range_Y + min_Y).as("y")  ).drop("prediction")
+      
+      //kmModel.summary.predictions.select("X", "Y")
+    xy_rescaled                          
     .coalesce(1)
     .write
-    .format("com.databricks.spark.csv")
-    .option("header", "true")
+    .mode(SaveMode.Overwrite)
+    .format("csv")//.format("com.databricks.spark.csv")
+    .option("header", "true")    
     .save("results/basic.csv")
+    
     return kmModel.summary.predictions                                          
     
     
     
   }               
-
+  kMeansClusteringXY(3)
   /**
  	* Function implements the k means clustering for task 2.
  	* */  
@@ -420,7 +431,11 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
     * */
    if(elbow)
      return kmModel.summary.predictions
-   kmModel.summary.predictions.select("X", "Y", "dow").coalesce(1).write.format("com.databricks.spark.csv")
+   
+   val xydow_rescaled = kmModel.summary.predictions
+                              .groupBy("predictions")
+                              .agg(mean("X").as("x")*range_X + min_X, mean("Y").as("y")*range_Y + min_Y, mean("dow").as("dow").cast(IntegerType)*6 +1  )  
+   xydow_rescaled.coalesce(1).write.format("com.databricks.spark.csv")
                                .option("header", "true").save("results/task2.csv")
    return kmModel.summary.predictions
     
@@ -444,7 +459,7 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
     //println(toreturn)
     val toreturn = complete
     .agg(sum(sqrt(pow((col("X") - col("avgx")),2.0) + pow((col("Y") - col("avgy")), 2.0)))).first.getDouble(0)
-    println(toreturn)
+    //println(toreturn)
     return toreturn
   }
   
@@ -466,7 +481,7 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
    * Function that calcultates the elbow point based on the input (2D or 3D)
    * */
   def elbow(dimension :Int) = {
-    val range  = 2 to 200 toList;
+    val range  = 2 to 30 toList;
     if(dimension == 2){
       val res = range.map(x => sumDistances2D(x)).zipWithIndex
       //val res1 = spark.sparkContext.parallelize(res).toDF("dist" , "ind")
@@ -495,7 +510,7 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
     
   }
   println("Elbow 2-------------------------------------")
-  //elbow(2)
+  elbow(2)
   println("Elbow 3-------------------------------------")
   //elbow(3)
  
