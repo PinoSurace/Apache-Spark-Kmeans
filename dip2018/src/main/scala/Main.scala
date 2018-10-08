@@ -66,33 +66,7 @@ class Kmeans extends Serializable{
   /** convergence condition */
   def convergence_condition : Double = 1.5D
   
-  /** read data and process */
-  def readData() : RDD[Point] = {
-    // Suppress the log messages:
-    Logger.getLogger("org").setLevel(Level.OFF)
   
-    val spark = SparkSession.builder()
-                          .appName("ex2")
-                          .config("spark.driver.host", "localhost")
-                          .master("local")
-                          .getOrCreate()
-                          
-    val lines = spark.sparkContext.textFile("data/2015.csv")
-    val withoutHeader = lines.mapPartitionsWithIndex((i, it) => if (i==0) it.drop(1) else it)
-    val dropBlankLine = withoutHeader.filter(x => !x.split(";")(55).isEmpty) // drop the line where x is None
-    val processed_data = dropBlankLine.map(line => {
-      val splitted = line.split(";")
-      if (splitted(19) == "Maanantai") Point(splitted(55).toDouble, splitted(56).toDouble, 1)
-      else if (splitted(19) == "Tiistai") Point(splitted(55).toDouble, splitted(56).toDouble, 2)
-      else if (splitted(19) == "Keskiviikko") Point(splitted(55).toDouble, splitted(56).toDouble, 3)
-      else if (splitted(19) == "Torstai") Point(splitted(55).toDouble, splitted(56).toDouble, 4)
-      else if (splitted(19) == "Perjantai") Point(splitted(55).toDouble, splitted(56).toDouble, 5)
-      else if (splitted(19) == "Lauantai") Point(splitted(55).toDouble, splitted(56).toDouble, 6)
-      else if (splitted(19) == "Sunnuntai") Point(splitted(55).toDouble, splitted(56).toDouble, 7)
-      else Point(splitted(55).toDouble, splitted(56).toDouble, 0)
-    })
-    return processed_data
-  }
   
   /** Do data scaling because the 3 columns of the data are not in the same scale */
   def minMaxScaling(points: RDD[Point]) : (RDD[Point], RescaleInfo) = {
@@ -116,7 +90,9 @@ class Kmeans extends Serializable{
     
   /** initialize random centroids */
   def initCentroids(points: RDD[Point], number_of_clusters : Int = default_num_clusters) : Array[Point] = { 
-    val pointsWithIndex = points.zipWithIndex().map{case (value, index) => (index, value)} // give indexes to the Points
+    val randomCentroids =  points.takeSample(false, number_of_clusters) 
+    
+    /*val pointsWithIndex = points.zipWithIndex().map{case (value, index) => (index, value)} // give indexes to the Points
     var randomCentroids = Array[Point]()
     
     val r = scala.util.Random
@@ -124,7 +100,7 @@ class Kmeans extends Serializable{
       val randomIdx = r.nextInt(points.count().toInt)
       val randomPoint = pointsWithIndex.lookup(randomIdx).head
       randomCentroids :+= randomPoint
-    }
+    }*/
     
     return randomCentroids
   }
@@ -139,7 +115,9 @@ class Kmeans extends Serializable{
   
   /** Find the index of the closest centroids for each point */
   def findClosestCentroid(point: Point, centroids: Array[Point]) : Int = {
-    var bestIndex = 0
+    
+    val bestIndex = centroids.zipWithIndex.map(centroid => (centroid._2, euclideanDistance(point, centroid._1))).minBy(_._2)._1
+    /*var bestIndex = 0
     var closest = Double.PositiveInfinity
     for (i <- 0 until centroids.length) {
       val tempDist = euclideanDistance(point, centroids(i))
@@ -147,7 +125,7 @@ class Kmeans extends Serializable{
         closest = tempDist
         bestIndex = i
       }
-    }
+    }*/
     return bestIndex
   }
   
@@ -186,7 +164,8 @@ class Kmeans extends Serializable{
     val distortion = indexed_centroids_with_error.map{ case (key, value) => value._2 }.sum                                     
     
                                         
-    // now find the total distance between the old and new centroids
+    // now find the total distance between the old and new centroids   
+    
     var total_distance = 0.0
     for (i <- 0 until centroids.length) {
       total_distance += euclideanDistance(centroids(i), new_centroids(i))
@@ -309,15 +288,15 @@ object main extends App {
   * Create a new dataframe where days of the week are mapped 
   * 
   * */                  
-                   
+                  
   val weekDays = Seq(
-  Row("Maanantai" : String, 1.0 : Double),
-  Row("Tiistai" : String, 2.0 : Double),
-  Row("Keskiviikko" : String,3.0 : Double),
-  Row("Torstai" : String,4.0 : Double),
-  Row("Perjantai" : String,5.0 : Double),
-  Row("Lauantai" : String,6.0 : Double),
-  Row("Sunnuntai" : String,7.0 : Double))
+  Row("Maanantai" : String, math.sin(1.0 * math.Pi/ 7) : Double),
+  Row("Tiistai" : String, math.sin(2.0* math.Pi/ 7) : Double),
+  Row("Keskiviikko" : String, math.sin(3.0* math.Pi/ 7) : Double),
+  Row("Torstai" : String, math.sin(4.0* math.Pi/ 7) : Double),
+  Row("Perjantai" : String, math.sin(5.0* math.Pi/ 7) : Double),
+  Row("Lauantai" : String,math.sin(6.0* math.Pi/ 7) : Double),
+  Row("Sunnuntai" : String,math.sin(7.0* math.Pi/ 7) : Double))
 
   val weekDaysSchema = List(
     StructField("Vkpv", StringType, true),
@@ -404,7 +383,7 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
     
     
   }               
-  kMeansClusteringXY(3)
+  
   /**
  	* Function implements the k means clustering for task 2.
  	* */  
@@ -423,6 +402,7 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
    val pipeLine = transformationPipeline.fit(df)
    val transformedTraining = pipeLine.transform(df)
  //transformedTraining.show
+   
    val kmeans = new KMeans().setK(n).setSeed(1L)
    val kmModel = kmeans.fit(transformedTraining)
  //kmModel1.summary.predictions.select("features").take(1).foreach(println)
@@ -481,7 +461,7 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
    * Function that calcultates the elbow point based on the input (2D or 3D)
    * */
   def elbow(dimension :Int) = {
-    val range  = 2 to 30 toList;
+    val range  = 2 to 1000 by 10 toList;
     if(dimension == 2){
       val res = range.map(x => sumDistances2D(x)).zipWithIndex
       //val res1 = spark.sparkContext.parallelize(res).toDF("dist" , "ind")
@@ -512,7 +492,7 @@ def kMeansClusteringXY(n : Int, elbow : Boolean = false) : DataFrame = {
   println("Elbow 2-------------------------------------")
   elbow(2)
   println("Elbow 3-------------------------------------")
-  //elbow(3)
+  elbow(3)
  
  
   
