@@ -1,5 +1,4 @@
 import org.apache.spark.SparkConf
-
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.Row
@@ -13,7 +12,6 @@ import org.apache.spark.sql.functions.coalesce
 import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.array
 import org.apache.spark.sql.SparkSession
-
 import com.databricks.spark.xml._
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.{Seconds, StreamingContext}
@@ -238,22 +236,8 @@ class Kmeans extends Serializable{
 
 object main extends App {
   
-  //menu
-/*  if (args.length == 0) {
-        println("error, parameters missing")
-   }
-  else if (args(0) == "task"){
-    args(1) match {
-      case 1 =>
-      case 2 =>
-      case 3 =>
-      case 4 =>
-      case 5 =>
-      case 6 =>  
-      
-    }
-    
-  } */
+  
+
   
   
   // Suppress the log messages:
@@ -269,7 +253,7 @@ object main extends App {
   
   import spark.implicits._
   
-                   
+  task1.run()                 
  /**
   * get data from the csv file to dataframe and select only the columns needed: X, Y and Vkpv.
   * Moreover dirty data are romoved.
@@ -321,14 +305,15 @@ object main extends App {
  * 
  * */ 
   val minMaxOfColumns = df.agg(min("X").as("min_X"), max("X").as("max_X"), 
-                                min("Y").as("min_Y"), max("Y").as("max_Y"))
+                                min("Y").as("min_Y"), max("Y").as("max_Y"),
+                                min("dow").as("min_dow"), max("dow").as("max_dow"))
   
   val min_X  : Int= minMaxOfColumns.select("min_X").first().getInt(0) 
   val max_X : Int= minMaxOfColumns.select("max_X").first().getInt(0) 
   val min_Y : Int= minMaxOfColumns.select("min_Y").first().getInt(0)
   val max_Y : Int= minMaxOfColumns.select("max_Y").first().getInt(0)
-  val min_DOW : Double= 1.0
-  val max_DOW : Double= 7.0
+  val min_DOW : Double= minMaxOfColumns.select("min_dow").first().getDouble(0)
+  val max_DOW : Double= minMaxOfColumns.select("max_dow").first().getDouble(0)
   val range_X : Int= max_X - min_X
   val range_Y : Int= max_Y - min_Y
   val range_DOW : Double= 6.0
@@ -715,3 +700,20 @@ val someDF = spark.createDataFrame(
     kmean.toCSV_elbow(cost_function_values, "results/task6.csv")
     println("Task 06 Done!!!!!!!!")
 }
+
+  //menu
+/*  if (args.length == 0) {
+        println("error, parameters missing")
+   }
+  else if (args(0) == "task"){
+    args(1) match {
+      case 1 =>
+      case 2 =>
+      case 3 =>
+      case 4 =>
+      case 5 =>
+      case 6 =>  
+      
+    }
+    
+  } */
