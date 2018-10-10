@@ -48,9 +48,7 @@ import org.apache.spark.sql.SaveMode
 
 //import org.apache.spark.sql.SQLContext.implicits._
 //import org.apache.spark.ml.feature.Imputer
-case class Point(x: Double, y: Double, day: Double)
-case class FeaturePoint(feature : Int, point : Point)
-case class RescaleInfo(minX : Double, maxX : Double, minY : Double, maxY : Double)
+
 
 
 /** used for task 5 and 6 */

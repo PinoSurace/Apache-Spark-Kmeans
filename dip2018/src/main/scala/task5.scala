@@ -46,7 +46,7 @@ import scala.util.control.Breaks._
 import java.io.PrintWriter
 import org.apache.spark.sql.SaveMode
 
-case class Point(x: Double, y: Double, day: Double)
+case class Point(x: Double, y: Double, xDay: Double, yDay: Double)
 case class FeaturePoint(feature : Int, point : Point)
 case class RescaleInfo(minX : Double, maxX : Double, minY : Double, maxY : Double)
 
@@ -61,19 +61,19 @@ object task5 {
   def convergence_condition : Double = 1.5D
   
   /** read data and process */
-  def readData(lines: RDD[String]) : RDD[Point] = {
+  def readData(spark : SparkSession) : RDD[Point] = {
+    val lines = spark.sparkContext.textFile("data/tieliikenneonnettomuudet_2015_onnettomuus.csv")
     val withoutHeader = lines.mapPartitionsWithIndex((i, it) => if (i==0) it.drop(1) else it)
     val dropBlankLine = withoutHeader.filter(x => !x.split(";")(55).isEmpty) // drop the line where x is None
     val processed_data = dropBlankLine.map(line => {
       val splitted = line.split(";")
-      if (splitted(19) == "Maanantai") Point(splitted(55).toDouble, splitted(56).toDouble, 1)
-      else if (splitted(19) == "Tiistai") Point(splitted(55).toDouble, splitted(56).toDouble, 2)
-      else if (splitted(19) == "Keskiviikko") Point(splitted(55).toDouble, splitted(56).toDouble, 3)
-      else if (splitted(19) == "Torstai") Point(splitted(55).toDouble, splitted(56).toDouble, 4)
-      else if (splitted(19) == "Perjantai") Point(splitted(55).toDouble, splitted(56).toDouble, 5)
-      else if (splitted(19) == "Lauantai") Point(splitted(55).toDouble, splitted(56).toDouble, 6)
-      else if (splitted(19) == "Sunnuntai") Point(splitted(55).toDouble, splitted(56).toDouble, 7)
-      else Point(splitted(55).toDouble, splitted(56).toDouble, 0)
+      if (splitted(19) == "Maanantai") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(1.0 * 2*math.Pi/ 7) : Double, math.sin(1.0 * 2*math.Pi/ 7) : Double)
+      else if (splitted(19) == "Tiistai") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(2.0*2* math.Pi/ 7) : Double, math.sin(2.0 * 2*math.Pi/ 7) : Double)
+      else if (splitted(19) == "Keskiviikko") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(3.0*2* math.Pi/ 7) : Double, math.sin(3.0 * 2*math.Pi/ 7) : Double)
+      else if (splitted(19) == "Torstai") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(4.0*2* math.Pi/ 7) : Double, math.sin(4.0 * 2*math.Pi/ 7) : Double)
+      else if (splitted(19) == "Perjantai") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(5.0*2* math.Pi/ 7) : Double, math.sin(5.0 * 2*math.Pi/ 7) : Double)
+      else if (splitted(19) == "Lauantai") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(6.0*2* math.Pi/ 7) : Double, math.sin(6.0 * 2*math.Pi/ 7) : Double)
+      else Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(7.0* 2*math.Pi/ 7) : Double, math.sin(7.0 * 2*math.Pi/ 7) : Double)
     })
     return processed_data
   }
@@ -94,8 +94,7 @@ object task5 {
     val scaledPoints = points.map(aPoint => {
       val scaled_x = (aPoint.x - minX) / (maxX - minX)
       val scaled_y = (aPoint.y - minY) / (maxX - minX)
-      val scaled_day = (aPoint.day - 1) / 6   // we only have days from 1 to 7
-      Point(scaled_x, scaled_y, scaled_day)
+      Point(scaled_x, scaled_y, aPoint.xDay, aPoint.yDay)
     })
     return (scaledPoints, rescale_info)
   }
@@ -121,7 +120,8 @@ object task5 {
   def euclideanDistance(point1 : Point, point2 : Point) : Double = {
     val distance = math.sqrt(math.pow(point1.x - point2.x, 2) 
         + math.pow(point1.y - point2.y, 2)
-        + math.pow(point1.day - point2.day, 2))  
+        + math.pow(point1.xDay - point2.xDay, 2)
+        + math.pow(point1.yDay - point2.yDay, 2))  
     return distance
   }
   
@@ -146,13 +146,15 @@ object task5 {
   def updateCentroid(aCluster: Iterable[Point]) : (Point, Double) = {
     val averaged_x = aCluster.map(_.x).sum / aCluster.size
     val averaged_y = aCluster.map(_.y).sum / aCluster.size
-    val averaged_day = aCluster.map(_.day).sum / aCluster.size
-    val new_centroid = Point(averaged_x, averaged_y, averaged_day)
+    val averaged_xday = aCluster.map(_.xDay).sum / aCluster.size
+    val averaged_yday = aCluster.map(_.yDay).sum / aCluster.size
+    val new_centroid = Point(averaged_x, averaged_y, averaged_xday, averaged_yday)
     // find sum of square error for each cluster
     val cost_x = aCluster.map(aPoint => math.pow(aPoint.x - averaged_x, 2)).sum
     val cost_y = aCluster.map(aPoint => math.pow(aPoint.y - averaged_y, 2)).sum
-    val cost_day = aCluster.map(aPoint => math.pow(aPoint.x - averaged_day, 2)).sum
-    val cost_cluster = cost_x + cost_y + cost_day
+    val cost_xday = aCluster.map(aPoint => math.pow(aPoint.xDay - averaged_xday, 2)).sum
+    val cost_yday = aCluster.map(aPoint => math.pow(aPoint.yDay - averaged_yday, 2)).sum
+    val cost_cluster = cost_x + cost_y + cost_xday + cost_yday
     
     return (new_centroid, cost_cluster)
   }
@@ -195,10 +197,9 @@ object task5 {
     val org_centroids = scaled_centroids.map(p => {
       val org_x = p.x * (rescaleInfo.maxX - rescaleInfo.minX) + rescaleInfo.minX
       val org_y = p.y * (rescaleInfo.maxY - rescaleInfo.minY) + rescaleInfo.minY
-      val org_day = p.day * 6 + 1
-      Point(org_x, org_y, org_day)
+      Point(org_x, org_y, p.xDay, p.yDay)
     })
-    return org_centroids
+    return org_centroids 
   }
   
   /** rescale all the points back to original coordinate (to plot later) */
@@ -207,17 +208,17 @@ object task5 {
     val org_points = clustered_points.map(point => {
       val org_x = point._2.x * (rescaleInfo.maxX - rescaleInfo.minX) + rescaleInfo.minX
       val org_y = point._2.y * (rescaleInfo.maxY - rescaleInfo.minY) + rescaleInfo.minY
-      val org_day = point._2.day * 6 + 1
-      (point._1, Point(org_x, org_y, org_day))
+      (point._1, Point(org_x, org_y, point._2.xDay, point._2.yDay))
     })
     return org_points
   }
   
   /** export centroids to CSV */
-  def toCSV_centroids(centroids: Array[Point], filename: String = "output/task5.csv") {
+  def toCSV_centroids(centroids: Array[Point], filename: String) {
     val header = Array("X", "Y", "Day")
     val rows = centroids.map(p => {
-      Array(p.x.toString(), p.y.toString(), p.day.toString())
+      val converted = math.atan2(p.yDay, p.xDay)
+      Array(p.x.toString(), p.y.toString(), converted)
     })
     val allRows = header +: rows
     val csv = allRows.map(_.mkString(",")).mkString("\n")
@@ -225,27 +226,41 @@ object task5 {
   }
   
   /** export clustered points to CSV */
-  def toCSV_points(points: RDD[(Int, Point)], filename: String = "output/task5_clusteredPoints.csv") {
+  def toCSV_points(points: RDD[(Int, Point)], filename: String) {
     val header = Array("Cluster", "X", "Y", "Day")
     val rows = points.map(point => {
-      Array(point._1.toString(), point._2.x.toString(), point._2.y.toString(), point._2.day.toString())
+      val converted = math.atan2(point._2.yDay, point._2.xDay)
+      Array(point._1.toString(), point._2.x.toString(), converted)
     }).collect()
     val allRows = header +: rows
     val csv = allRows.map(_.mkString(",")).mkString("\n")
     new PrintWriter(filename) {write(csv); close()}
   }
   
-  /** export Elbow result to CSV */
-  def toCSV_elbow(costs : Array[(Int, Double)], filename: String = "output/task6_CostWithDifferentNumberOfClusters.csv") {
-    val header = Array("NumOfCluster", "Cost")
-    val rows = costs.map(x => Array(x._1.toString(), x._2.toString()))
-    val allRows = header +: rows
-    val csv = allRows.map(_.mkString(",")).mkString("\n")
-    new PrintWriter(filename) {write(csv); close()}
-  }
   
-  def run() {
-    
+  def run(spark : SparkSession) {
+    println("-------------Task05: Read Original Data---------------")
+    val data = readData(spark)
+    println("-------------Scaled data-----------------")
+    val scaled_data = minMaxScaling(data)
+    val scaled_points = scaled_data._1
+    val rescale_info = scaled_data._2
+    println("-------------Random Initialized Centroids-----------------")
+    val randomCentroids = initCentroids(scaled_points)
+    println("-------------Run K-Means----------------")
+    val (scaled_centroids, clustered_points, distortion) = kmeansRun(scaled_points, randomCentroids)
+    println("-------------Rescale----------------")
+    println("-------------Centroids---------------")
+    val rescaled_centroids = rescaling_centroids(scaled_centroids, rescale_info)
+    rescaled_centroids.foreach(println)
+    println("-------------Points---------------")
+    val rescaled_clustered_points = rescaling_points(clustered_points, rescale_info)
+    rescaled_clustered_points.take(20).foreach(println)    
+    println()
+    println("-------------Export to CSV----------------")
+    toCSV_centroids(rescaled_centroids, "results/task5.csv")
+    toCSV_points(rescaled_clustered_points, "results/task5_clusteredPoints.csv")
+    println("!!!!!!!!!!!!!!!!!!!!Done!!!!!!!!!!!!!!!!!!!")
     
   }
 }
