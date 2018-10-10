@@ -253,7 +253,7 @@ object main extends App {
   
   import spark.implicits._
   
-  task1.run()                 
+               
  /**
   * get data from the csv file to dataframe and select only the columns needed: X, Y and Vkpv.
   * Moreover dirty data are romoved.
@@ -316,7 +316,7 @@ object main extends App {
   val max_DOW : Double= minMaxOfColumns.select("max_dow").first().getDouble(0)
   val range_X : Int= max_X - min_X
   val range_Y : Int= max_Y - min_Y
-  val range_DOW : Double= 6.0
+  val range_DOW : Double= max_DOW - min_DOW
   val rescale_info= RescaleInfo(min_X, max_X, min_Y, max_Y)
   println(rescale_info)
   val df_scaled = df.withColumn("X_scaled",((col("X") - min_X)/range_X))

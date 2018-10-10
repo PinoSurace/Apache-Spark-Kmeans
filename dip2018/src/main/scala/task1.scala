@@ -15,9 +15,7 @@ import org.apache.spark.sql.SparkSession
 import com.databricks.spark.xml._
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-
 import java.lang.Thread
-
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 import org.apache.spark.ml.clustering.KMeans
@@ -47,13 +45,13 @@ import java.io.PrintWriter
 import org.apache.spark.sql.SaveMode
 
 
-object task1 {
+object task1 extends DFtask{
   
   /**
  * Function implements the k means clustering for task 1.
  * */               
                    
-def kMeansClusteringXY(data: DataFrame, n : Int, elbow : Boolean = false) : DataFrame = {
+  def kMeansClustering(data: DataFrame, n : Int, elbow : Boolean = false) : DataFrame = {
      
     val vectorAssembler = new VectorAssembler().setInputCols(Array("X", "Y")).setOutputCol("features")                              
     val transformationPipeline = new Pipeline().setStages(Array(vectorAssembler))
@@ -62,55 +60,30 @@ def kMeansClusteringXY(data: DataFrame, n : Int, elbow : Boolean = false) : Data
     val transformedTraining = pipeLine.transform(coordinates)
     val kmeans = new KMeans().setK(n).setSeed(1L)
     val kmModel = kmeans.fit(transformedTraining)
- 
-    //if(elbow)
-      return kmModel.summary.predictions
-     
-     /**
-      * Result written in csv file 
-      * */     
-    //val xy_rescaled = kmModel.summary.predictions
-    //                          .groupBy("prediction")
-    //                          .agg((mean("X")*range_X + min_X).as("x"), (mean("Y")*range_Y + min_Y).as("y")  ).drop("prediction")
-      
-      //kmModel.summary.predictions.select("X", "Y")
-    xy_rescaled                          
+    return kmModel.summary.predictions  
+  }
+  
+  def printDF(data : DataFrame, filename: String) = {
+    val header = Array("X", "Y")
+    val rows = data.rdd.map( row =>   Array(row(0).toString(), row(1).toString())).collect()
+    val allRows = header +: rows
+    val csv = allRows.map(_.mkString(",")).mkString("\n")
+    new PrintWriter(filename) {write(csv); close()}
+    
+    /*
+    
+    data
     .coalesce(1)
     .write
     .mode(SaveMode.Overwrite)
     .format("csv")//.format("com.databricks.spark.csv")
     .option("header", "true")    
-    .save("results/basic.csv")
-    
-    return kmModel.summary.predictions                                          
-    
-    
+    .save("results/basic.csv")*/
     
   }
   
-  
-  
-  
-  
-  def run() = {
-    Logger.getLogger("org").setLevel(Level.OFF)
-
-	  val spark = SparkSession.builder()
-                          .appName("ex2")
-                          .config("spark.driver.host", "localhost")
-                          .master("local")
-                          .getOrCreate()
-
-    spark.conf.set("spark.sql.shuffle.partitions", "5")
-  
-    import spark.implicits._
-    
-    /**
-  	* get data from the csv file to dataframe and select only the columns needed: X, Y and Vkpv.
-  	* Moreover dirty data are romoved.
-  	* 
-  	* */
-    val df : DataFrame  = spark.read 
+  def readCSVtoDF(spark : SparkSession) : DataFrame = {
+    val data : DataFrame  = spark.read 
                    .format("csv")
                    .option("delimiter", ";")
                    .option("header", "true")
@@ -119,38 +92,55 @@ def kMeansClusteringXY(data: DataFrame, n : Int, elbow : Boolean = false) : Data
                    .select("X", "Y")
                    .na.drop
     
-    /**
- 		* Create df with scaled data
-		* 
- 		* */ 
-    val minMaxOfColumns = df.agg(min("X").as("min_X"), max("X").as("max_X"), 
-                                min("Y").as("min_Y"), max("Y").as("max_Y"))
+    return data    
+  }
   
-    val min_X  : Int= minMaxOfColumns.select("min_X").first().getInt(0) 
+  def getExtremeValuesFromDF(data :DataFrame) : (Int, Int, Int, Int,Double,Double)  = {
+    val minMaxOfColumns = data.agg(min("X").as("min_X"), max("X").as("max_X"), 
+                                   min("Y").as("min_Y"), max("Y").as("max_Y"))
+  
+    val min_X : Int= minMaxOfColumns.select("min_X").first().getInt(0) 
     val max_X : Int= minMaxOfColumns.select("max_X").first().getInt(0) 
     val min_Y : Int= minMaxOfColumns.select("min_Y").first().getInt(0)
     val max_Y : Int= minMaxOfColumns.select("max_Y").first().getInt(0)
+    
+    return (min_X, max_X, min_Y, max_Y, 0, 0)
+  }
+  
+  def scaleData(data :DataFrame, min_X : Int, max_X : Int, min_Y :Int, max_Y : Int, min_DOW : Double = 0, max_DOW : Double = 0) : DataFrame = {
+       
+    val range_X : Int= max_X - min_X
+    val range_Y : Int= max_Y - min_Y    
+    val df_scaled = data.withColumn("X_scaled",((col("X") - min_X)/range_X))
+                      .withColumn("Y_scaled",((col("Y") - min_Y)/range_Y))
+    
+    return df_scaled
+  }
+  
+  
+  def rescaleData(data :DataFrame, min_X : Int, max_X : Int, min_Y :Int, max_Y : Int, min_DOW : Double = 0, max_DOW : Double = 0) : DataFrame = {
     val range_X : Int= max_X - min_X
     val range_Y : Int= max_Y - min_Y
     
-    val df_scaled = df.withColumn("X_scaled",((col("X") - min_X)/range_X))
-                      .withColumn("Y_scaled",((col("Y") - min_Y)/range_Y))
-                   
-    val xy_rescaled = kMeansClusteringXY(df, 5)
-                              .groupBy("prediction")
-                              .agg((mean("X")*range_X + min_X).as("x"), (mean("Y")*range_Y + min_Y).as("y")  ).drop("prediction")                         
-                                
-/**
- * Print function
- * 
- * */  
+    return data.groupBy("prediction")
+     .agg((mean("X")*range_X + min_X).as("x"), (mean("Y")*range_Y + min_Y).as("y")  ).drop("prediction")
+    
+    
+  }
   
   
-       
+  
+  def run(spark : SparkSession) = {
     
+    val df = readCSVtoDF(spark)
+    val (min_X, max_X, min_Y, max_Y, _, _) = getExtremeValuesFromDF(df)
     
+    val df_scaled = scaleData(df, min_X , max_X, min_Y , max_Y )
     
+    val clusters = kMeansClustering(df_scaled, 5)
     
+    val df_rescaled = rescaleData(clusters, min_X , max_X, min_Y , max_Y )
+    printDF(df_rescaled, "results/basic.csv")
     
   }
 }
