@@ -57,25 +57,24 @@ import org.apache.spark.sql.SaveMode
 
 
 object main extends App {
-  // Suppress the log messages:
-  Logger.getLogger("org").setLevel(Level.OFF)
-
-	val spark = SparkSession.builder()
-                          .appName("Assignment")
-                          .config("spark.driver.host", "localhost")
-                          .master("local")
-                          .getOrCreate()
-
-  spark.conf.set("spark.sql.shuffle.partitions", "5")
-  
-  import spark.implicits._
-  
-
   
   if (args.length == 0) {
         println("error, parameters missing")
    }
   else if (args(0) == "-task"){
+    // Suppress the log messages:
+    Logger.getLogger("org").setLevel(Level.OFF)
+
+	  val spark = SparkSession.builder()
+                          .appName("Assignment")
+                          .config("spark.driver.host", "localhost")
+                          .master("local")
+                          .getOrCreate()
+
+    spark.conf.set("spark.sql.shuffle.partitions", "5")
+  
+    import spark.implicits._
+  
     args(1) match {
       case "1" => task1.run(spark)
       case "2" => task2.run(spark)
