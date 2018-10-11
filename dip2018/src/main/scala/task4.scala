@@ -124,8 +124,7 @@ object task4 {
     elbow(df_scaled, 2)
     
     println("-------------------task 4 dim2 end----------------")
-    println("-------------------task 4 dim3 start----------------")
-    println("-------------------task 4 dim3 end----------------")
+    
     
   }
   

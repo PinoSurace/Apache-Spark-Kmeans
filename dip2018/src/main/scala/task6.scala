@@ -52,10 +52,10 @@ object task6 {
   def default_num_clusters = 3
   
   /** number of interations */
-  def max_iterations = 200
+  def max_iterations = 50
   
   /** convergence condition */
-  def convergence_condition : Double = 1.5D
+  def convergence_condition : Double = 2D
   
   /** read data and process */
   def readData(spark : SparkSession) : RDD[Point] = {
@@ -210,33 +210,8 @@ object task6 {
     return org_points
   }
   
-  /** export centroids to CSV */
-  def toCSV_centroids(centroids: Array[Point], filename: String) {
-    val header = Array("X", "Y", "Day")
-    val rows = centroids.map(p => {
-      val converted = math.atan2(p.yDay, p.xDay)
-      Array(p.x.toString(), p.y.toString(), converted)
-    })
-    val allRows = header +: rows
-    val csv = allRows.map(_.mkString(",")).mkString("\n")
-    new PrintWriter(filename) {write(csv); close()}
-  }
-  
-  /** export clustered points to CSV */
-  def toCSV_points(points: RDD[(Int, Point)], filename: String) {
-    val header = Array("Cluster", "X", "Y", "Day")
-    val rows = points.map(point => {
-      val arctan = math.atan2(point._2.yDay, point._2.xDay)*7/(2*math.Pi)
-      val converted = if(arctan > 0)  arctan else arctan+7
-      Array(point._1.toString(), point._2.x.toString(), converted)
-    }).collect()
-    val allRows = header +: rows
-    val csv = allRows.map(_.mkString(",")).mkString("\n")
-    new PrintWriter(filename) {write(csv); close()}
-  }
-  
   /** export Elbow result to CSV */
-  def toCSV_elbow(costs : Array[(Int, Double)], filename: String = "result/task6.csv") {
+  def toCSV_elbow(costs : Array[(Int, Double)], filename: String = "results/task6.csv") {
     val header = Array("NumOfCluster", "Cost")
     val rows = costs.map(x => Array(x._1.toString(), x._2.toString()))
     val allRows = header +: rows
@@ -258,10 +233,12 @@ object task6 {
     
     println("-------------Run Kmeans with Different Number of Clusters-----------------")
     var cost_function_values = Array[(Int,Double)]()
-    for (i <- 2 until 20) {
+    val range = 2 to 302 by 10 toList;
+    for (i <- range) {
       val randomCentroids = initCentroids(scaled_points, i)
       val (scaled_centroids, clustered_points, distortion) = kmeansRun(scaled_points, randomCentroids) 
       cost_function_values :+= (i, distortion)
+      println((i, distortion))
     }
     cost_function_values.foreach(println)
     toCSV_elbow(cost_function_values)

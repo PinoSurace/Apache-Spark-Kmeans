@@ -191,9 +191,9 @@ object task2 {
                              (mean("Y_scaled")*range_Y + min_Y).as("y"),
                              (mean("dow_x_scaled")*range_dow_x +min_dow_x).as("dow_x"),
                              (mean("dow_y_scaled")*range_dow_y +min_dow_y).as("dow_y"))  
-    data_rescaled.show()                         
+                            
     val data_with_dow = data_rescaled.withColumn("dow", when(atan2(col("dow_y"),col("dow_x")) > 0, atan2(col("dow_y"),col("dow_x"))*7/(2*math.Pi)).otherwise(atan2(col("dow_y"),col("dow_x"))*7/(2*math.Pi) +7))
-    data_with_dow.show()
+    
     return data_with_dow
   }
   

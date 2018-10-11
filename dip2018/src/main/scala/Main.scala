@@ -57,16 +57,11 @@ import org.apache.spark.sql.SaveMode
 
 
 object main extends App {
-  
-  
-
-  
-  
   // Suppress the log messages:
   Logger.getLogger("org").setLevel(Level.OFF)
 
 	val spark = SparkSession.builder()
-                          .appName("ex2")
+                          .appName("Assignment")
                           .config("spark.driver.host", "localhost")
                           .master("local")
                           .getOrCreate()
@@ -75,22 +70,21 @@ object main extends App {
   
   import spark.implicits._
   
-  task4.run(spark)
 
-  //menu
-/*  if (args.length == 0) {
+  
+  if (args.length == 0) {
         println("error, parameters missing")
    }
-  else if (args(0) == "task"){
+  else if (args(0) == "-task"){
     args(1) match {
-      case 1 =>
-      case 2 =>
-      case 3 =>
-      case 4 =>
-      case 5 =>
-      case 6 =>  
+      case "1" => task1.run(spark)
+      case "2" => task2.run(spark)
+      case "3" => println("It is in the document")
+      case "4" => task4.run(spark)
+      case "5" => task5.run(spark)
+      case "6" => task6.run(spark) 
       
     }
     
-  } */
+  } 
 }

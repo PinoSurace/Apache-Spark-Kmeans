@@ -52,7 +52,7 @@ case class RescaleInfo(minX : Double, maxX : Double, minY : Double, maxY : Doubl
 
 object task5 {
     /** number of clusters */
-  def default_num_clusters = 3
+  def default_num_clusters = 32
   
   /** number of interations */
   def max_iterations = 200
@@ -232,7 +232,7 @@ object task5 {
     val rows = points.map(point => {
       val arctan = math.atan2(point._2.yDay, point._2.xDay)*7/(2*math.Pi)
       val converted = if(arctan > 0)  arctan else arctan+7
-      Array(point._1.toString(), point._2.x.toString(), converted)
+      Array(point._1.toString(), point._2.x.toString(), point._2.y.toString(), converted)
     }).collect()
     val allRows = header +: rows
     val csv = allRows.map(_.mkString(",")).mkString("\n")
@@ -261,7 +261,7 @@ object task5 {
     println()
     println("-------------Export to CSV----------------")
     toCSV_centroids(rescaled_centroids, "results/task5.csv")
-    toCSV_points(rescaled_clustered_points, "results/task5_clusteredPoints.csv")
+    //toCSV_points(rescaled_clustered_points, "results/task5_clusteredPoints.csv")
     println("!!!!!!!!!!!!!!!!!!!!Done!!!!!!!!!!!!!!!!!!!")
     
   }
