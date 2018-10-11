@@ -217,7 +217,8 @@ object task5 {
   def toCSV_centroids(centroids: Array[Point], filename: String) {
     val header = Array("X", "Y", "Day")
     val rows = centroids.map(p => {
-      val converted = math.atan2(p.yDay, p.xDay)*7/(2*math.Pi)
+      val arctan = math.atan2(p.yDay, p.xDay)*7/(2*math.Pi)
+      val converted = if(arctan > 0)  arctan else arctan+7
       Array(p.x.toString(), p.y.toString(), converted)
     })
     val allRows = header +: rows

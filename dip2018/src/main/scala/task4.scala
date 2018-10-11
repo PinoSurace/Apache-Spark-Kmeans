@@ -101,15 +101,15 @@ object task4 {
   }
   
   def elbow(data: DataFrame, dimension :Int) = {
-    val range  = 2 to 1000 by 10 toList;
+    val range  = 2 to 302 by 10 toList;
     if(dimension == 2){
       val res = range.map(x => (x,sumDistances2D(data,x)))
-      toCSV_elbow(res,  "result/elbow2D.csv")
+      toCSV_elbow(res,  "results/elbow2D.csv")
           
     }else if(dimension == 3){
       
       val res = range.map(x => (x,sumDistances3D(data,x)))
-      toCSV_elbow(res,  "result/elbow3D.csv")
+      toCSV_elbow(res,  "results/elbow3D.csv")
       
     }
    

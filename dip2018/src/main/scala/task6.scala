@@ -226,7 +226,8 @@ object task6 {
   def toCSV_points(points: RDD[(Int, Point)], filename: String) {
     val header = Array("Cluster", "X", "Y", "Day")
     val rows = points.map(point => {
-      val converted = math.atan2(point._2.yDay, point._2.xDay)
+      val arctan = math.atan2(point._2.yDay, point._2.xDay)*7/(2*math.Pi)
+      val converted = if(arctan > 0)  arctan else arctan+7
       Array(point._1.toString(), point._2.x.toString(), converted)
     }).collect()
     val allRows = header +: rows
