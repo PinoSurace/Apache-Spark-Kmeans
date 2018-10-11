@@ -51,67 +51,100 @@ object task4 {
   /**
    * Function that sum the distances between the k means points and the other points in the 2D case
    * */
-  def sumDistances2D(i : Int) : Double  = {
+  def sumDistances2D(data: DataFrame, i : Int) : Double  = {
     println(i)
-    val pred = kMeansClusteringXY(i, true) //.groupBy("prediction").agg(mean("X").alias("avgx"), mean("Y").alias("avgy")).show
-    val avg : DataFrame= pred.groupBy("prediction").agg(mean("X").alias("avgx"), mean("Y").alias("avgy"))
-    val complete : DataFrame= pred.join(avg, pred("prediction") === avg("prediction"), "left_outer")
-    //val toreturn = complete
-    //.agg(sum((col("X") - col("avgx"))*(col("X") - col("avgx")) + (col("Y") - col("avgy"))*(col("Y") - col("avgy"))).cast("double")).first.getDouble(0)
-    //println(toreturn)
+    val pred = task1.kMeansClustering(data, i) //.groupBy("prediction").agg(mean("X").alias("avgx"), mean("Y").alias("avgy")).show
+    val avg : DataFrame= pred
+                         .groupBy("prediction")
+                         .agg(mean("X_scaled").alias("avgx"),
+                              mean("Y_scaled").alias("avgy"))
+    val complete : DataFrame= pred
+                              .join(avg, pred("prediction") === avg("prediction"), "left_outer")
+    
     val toreturn = complete
-    .agg(sum(sqrt(pow((col("X") - col("avgx")),2.0) + pow((col("Y") - col("avgy")), 2.0)))).first.getDouble(0)
-    //println(toreturn)
+                    .agg(sum(sqrt(pow((col("X_scaled") - col("avgx")),2.0) + 
+                                  pow((col("Y_scaled") - col("avgy")), 2.0))))
+                                  .first.getDouble(0)
+    
     return toreturn
   }
   
   /**
    * Function that sum the distances between the k means points and the other points in the 3D case
    * */
-  def sumDistances3D(i : Int) : Double  = {
+  def sumDistances3D(data: DataFrame, i : Int) : Double  = {
     println(i)
-    val pred = kMeansClusteringXYDOW(i, true) //.groupBy("prediction").agg(mean("X").alias("avgx"), mean("Y").alias("avgy")).show
-    val avg : DataFrame= pred.groupBy("prediction").agg(mean("X").alias("avgx"), mean("Y").alias("avgy"), mean("dow").alias("avgdow"))
-    val complete : DataFrame= pred.join(avg, pred("prediction") === avg("prediction"), "left_outer")
+    val pred = task2.kMeansClustering(data,i) 
+    val avg : DataFrame= pred
+                       .groupBy("prediction")
+                       .agg(mean("X_scaled").alias("avgx"),
+                            mean("Y_scaled").alias("avgy"),
+                            mean("dow_x_scaled").alias("avgdow_x"),
+                            mean("dow_y_scaled").alias("avgdow_y"))
+    val complete : DataFrame= pred
+                              .join(avg, pred("prediction") === avg("prediction"), "left_outer")
     return complete
-   .agg(sum((col("X") - col("avgx"))*(col("X") - col("avgx")) + 
-       (col("Y") - col("avgy"))*(col("Y") - col("avgy")) +
-       (col("dow") - col("avgdow"))*(col("dow") - col("avgdow"))).cast("double")).first.getDouble(0)
-   
+           .agg(sum(sqrt(pow((col("X_scaled") - col("avgx")),2.0) + 
+                         pow((col("Y_scaled") - col("avgy")), 2.0)+
+                         pow((col("dow_x_scaled") - col("avgdow_x")), 2.0)+
+                         pow((col("dow_y_scaled") - col("avgdow_y")), 2.0))))
+                         .first.getDouble(0)
   }
-  def elbow(dimension :Int) = {
+  
+  
+  def toCSV_elbow(costs : List[(Int, Double)], filename: String = "result/task6.csv") {
+    val header = Array("NumOfCluster", "Cost")
+    val rows = costs.map(x => Array(x._1.toString(), x._2.toString()))
+    val allRows = header +: rows
+    val csv = allRows.map(_.mkString(",")).mkString("\n")
+    new PrintWriter(filename) {write(csv); close()}
+  }
+  
+  def elbow(data: DataFrame, dimension :Int) = {
     val range  = 2 to 1000 by 10 toList;
     if(dimension == 2){
-      val res = range.map(x => sumDistances2D(x)).zipWithIndex
-      //val res1 = spark.sparkContext.parallelize(res).toDF("dist" , "ind")
-      val res1 = spark.createDataFrame(res).toDF("dist", "ind")
-      
-    //res1.coalesce(1).write.csv("/results/elbow2.csv")
-      res1.coalesce(1)
-         .write
-         .format("com.databricks.spark.csv")
-         .option("header", "true")
-         .mode("overwrite")
-         .save("results/elbow2.csv") 
-    
-    
+      val res = range.map(x => (x,sumDistances2D(data,x)))
+      toCSV_elbow(res,  "result/elbow2D.csv")
+          
     }else if(dimension == 3){
-      val res = range.map(x => sumDistances3D(x)).zipWithIndex
-      val res1 = spark.createDataFrame(res).toDF("dist", "ind")
-      res1.coalesce(1)
-         .write
-         .format("com.databricks.spark.csv")
-         .option("header", "true")
-         .mode("overwrite")
-         .save("results/elbow3.csv")
+      
+      val res = range.map(x => (x,sumDistances3D(data,x)))
+      toCSV_elbow(res,  "result/elbow3D.csv")
+      
     }
    
     
   }
   
-  def run(){
+  def runKMeansDim2(spark : SparkSession){
+    println("-------------------task 4 dim2 start----------------")
+    val dataXY = task1.readCSVtoDF(spark)
+    val (min_X, max_X, min_Y, max_Y) = task1.getExtremeValuesFromDF(dataXY)
+    val df_scaled = task1.scaleData(dataXY, min_X , max_X, min_Y , max_Y )
+    elbow(df_scaled, 2)
     
+    println("-------------------task 4 dim2 end----------------")
+    println("-------------------task 4 dim3 start----------------")
+    println("-------------------task 4 dim3 end----------------")
     
+  }
+  
+  def runKMeansDim3(spark : SparkSession){
+    println("-------------------task 4 dim3 start----------------")
+    val dataXYDOW = task2.readCSVtoDF(spark)
+    val (min_X, max_X, min_Y, max_Y, min_dow_x, max_dow_x,min_dow_y, max_dow_y) = task2.getExtremeValuesFromDF(dataXYDOW)
+    
+    val df_scaled = task2.scaleData(dataXYDOW, min_X , max_X, min_Y , max_Y, min_dow_x, max_dow_x,min_dow_y, max_dow_y )
+    
+    elbow(df_scaled, 3)
+    
+    println("-------------------task 4 dim3 end----------------")    
+    
+  }
+  
+  def run(spark : SparkSession){
+    runKMeansDim2(spark)
+    runKMeansDim3(spark)
     
   }
   

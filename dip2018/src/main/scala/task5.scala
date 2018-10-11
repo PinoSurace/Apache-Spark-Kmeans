@@ -73,7 +73,7 @@ object task5 {
       else if (splitted(19) == "Torstai") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(4.0*2* math.Pi/ 7) : Double, math.sin(4.0 * 2*math.Pi/ 7) : Double)
       else if (splitted(19) == "Perjantai") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(5.0*2* math.Pi/ 7) : Double, math.sin(5.0 * 2*math.Pi/ 7) : Double)
       else if (splitted(19) == "Lauantai") Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(6.0*2* math.Pi/ 7) : Double, math.sin(6.0 * 2*math.Pi/ 7) : Double)
-      else Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(7.0* 2*math.Pi/ 7) : Double, math.sin(7.0 * 2*math.Pi/ 7) : Double)
+      else Point(splitted(55).toDouble, splitted(56).toDouble, math.cos(7.0* 2*math.Pi/ 7) : Double, 0 : Double)
     })
     return processed_data
   }
@@ -217,7 +217,7 @@ object task5 {
   def toCSV_centroids(centroids: Array[Point], filename: String) {
     val header = Array("X", "Y", "Day")
     val rows = centroids.map(p => {
-      val converted = math.atan2(p.yDay, p.xDay)
+      val converted = math.atan2(p.yDay, p.xDay)*7/(2*math.Pi)
       Array(p.x.toString(), p.y.toString(), converted)
     })
     val allRows = header +: rows
@@ -229,7 +229,8 @@ object task5 {
   def toCSV_points(points: RDD[(Int, Point)], filename: String) {
     val header = Array("Cluster", "X", "Y", "Day")
     val rows = points.map(point => {
-      val converted = math.atan2(point._2.yDay, point._2.xDay)
+      val arctan = math.atan2(point._2.yDay, point._2.xDay)*7/(2*math.Pi)
+      val converted = if(arctan > 0)  arctan else arctan+7
       Array(point._1.toString(), point._2.x.toString(), converted)
     }).collect()
     val allRows = header +: rows

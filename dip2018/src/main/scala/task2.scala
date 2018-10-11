@@ -47,42 +47,43 @@ import java.io.PrintWriter
 import org.apache.spark.sql.SaveMode
 
 object task2 {
+  
   /**
- * Function implements the k means clustering for task 1.
- * */               
-                   
-  def kMeansClustering(data: DataFrame, n : Int, elbow : Boolean = false) : DataFrame = {     
+ 	* Function implements the k means clustering for 4 dimensions.
+ 	* */            
+  def kMeansClustering(data: DataFrame, n : Int) : DataFrame = {     
      
     val vectorAssembler = new VectorAssembler().setInputCols(Array("X_scaled", "Y_scaled", "dow_x_scaled", "dow_y_scaled")).setOutputCol("features") 
     val transformationPipeline = new Pipeline().setStages(Array(vectorAssembler))   
-    val pipeLine = transformationPipeline.fit(data)
-    val transformedTraining = pipeLine.transform(data)
+    val coordinates : DataFrame = data.select("X_scaled", "Y_scaled", "dow_x_scaled", "dow_y_scaled")
+    val pipeLine = transformationPipeline.fit(coordinates)
+    val transformedTraining = pipeLine.transform(coordinates)
     val kmeans = new KMeans().setK(n).setSeed(1L)
     val kmModel = kmeans.fit(transformedTraining) 
     return kmModel.summary.predictions
   }
   
-  def printDF(data : DataFrame, filename: String) = {
-    val header = Array("X", "Y")
-    val rows = data.rdd.map( row =>   Array(row(0).toString(), row(1).toString())).collect()
+  /**
+   * Write input dataframe to csv file with path specified in filename
+   * 
+   **/  
+  def printDFtoCSV(data : DataFrame, filename: String) = {
+    val header = Array("x", "y", "dow")
+    val rows = data.rdd.map( row =>   Array(row(0).toString(), row(1).toString(), row(2).toString())).collect()
     val allRows = header +: rows
     val csv = allRows.map(_.mkString(",")).mkString("\n")
     new PrintWriter(filename) {write(csv); close()}
     
-    /*
-    
-    data
-    .coalesce(1)
-    .write
-    .mode(SaveMode.Overwrite)
-    .format("csv")//.format("com.databricks.spark.csv")
-    .option("header", "true")    
-    .save("results/basic.csv")*/
-    
   }
   
-  def readCSVtoDF(spark : SparkSession) : DataFrame = {
-    
+  
+  /**
+   * Read data from csv file and transform it so that day of week are not string,
+   * but numbers transformed in points with two coordinates x is the cosine and y is the sine of the
+   * angle formed by the respective weekday.
+   * Moreover dirty data are removed.
+   * */
+  def readCSVtoDF(spark : SparkSession) : DataFrame = {    
                    
     val dfXYVkpv : DataFrame  = spark.read 
                    .format("csv")
@@ -97,15 +98,15 @@ object task2 {
   * Create a new dataframe where days of the week are mapped 
   * 
   * */                  
-                  
+                  //when otherwise
   val weekDays = Seq(
-  Row("Maanantai" : String, math.sin(1.0 * 2*math.Pi/ 7) : Double, math.cos(1.0 * 2*math.Pi/ 7) : Double),
-  Row("Tiistai" : String, math.sin(2.0*2* math.Pi/ 7) : Double, math.cos(2.0 * 2*math.Pi/ 7) : Double),
-  Row("Keskiviikko" : String, math.sin(3.0*2* math.Pi/ 7) : Double, math.cos(3.0 * 2*math.Pi/ 7) : Double),
-  Row("Torstai" : String, math.sin(4.0*2* math.Pi/ 7) : Double, math.cos(4.0 * 2*math.Pi/ 7) : Double),
-  Row("Perjantai" : String, math.sin(5.0*2* math.Pi/ 7) : Double, math.cos(5.0 * 2*math.Pi/ 7) : Double),
-  Row("Lauantai" : String,math.sin(6.0*2* math.Pi/ 7) : Double, math.cos(6.0 * 2*math.Pi/ 7) : Double),
-  Row("Sunnuntai" : String,math.sin(7.0* 2*math.Pi/ 7) : Double, math.cos(7.0 * 2*math.Pi/ 7) : Double))
+  Row("Maanantai" : String, math.cos(1.0 * 2*math.Pi/ 7) : Double, math.sin(1.0 * 2*math.Pi/ 7) : Double),
+  Row("Tiistai" : String, math.cos(2.0*2* math.Pi/ 7) : Double, math.sin(2.0 * 2*math.Pi/ 7) : Double),
+  Row("Keskiviikko" : String, math.cos(3.0*2* math.Pi/ 7) : Double, math.sin(3.0 * 2*math.Pi/ 7) : Double),
+  Row("Torstai" : String, math.cos(4.0*2* math.Pi/ 7) : Double, math.sin(4.0 * 2*math.Pi/ 7) : Double),
+  Row("Perjantai" : String, math.cos(5.0*2* math.Pi/ 7) : Double, math.sin(5.0 * 2*math.Pi/ 7) : Double),
+  Row("Lauantai" : String,math.cos(6.0*2* math.Pi/ 7) : Double, math.sin(6.0 * 2*math.Pi/ 7) : Double),
+  Row("Sunnuntai" : String,math.cos(7.0* 2*math.Pi/ 7) : Double, 0 : Double))
 
   val weekDaysSchema = List(
     StructField("Vkpv", StringType, true),
@@ -117,9 +118,11 @@ object task2 {
     spark.sparkContext.parallelize(weekDays),
     StructType(weekDaysSchema)
   )  
-
+  //weekDaysDF.show()
+  //val prova = weekDaysDF.withColumn("dow", when(atan2(col("dow_y"),col("dow_x")) > 0, atan2(col("dow_y"),col("dow_x"))*7/(2*math.Pi)).otherwise(atan2(col("dow_y"),col("dow_x"))*7/(2*math.Pi) +7))
+  //prova.show()
 /**
- * Create a dataframe with coordinates X and Y and integers as weekdays
+ * Create a dataframe with coordinates X and Y and two coordinates of day of the week
  * 
  * 
  * */  
@@ -129,6 +132,9 @@ object task2 {
     return data    
   }
   
+  /**
+   *  Return the extreme values of the columns of dataframe
+   * */
   def getExtremeValuesFromDF(data :DataFrame) : (Int, Int, Int, Int, Double, Double, Double, Double) = {
     val minMaxOfColumns = data.agg(min("X").as("min_X"), max("X").as("max_X"), 
                                 min("Y").as("min_Y"), max("Y").as("max_Y"),
@@ -147,6 +153,9 @@ object task2 {
     return (min_X, max_X, min_Y, max_Y, min_dow_x, max_dow_x,min_dow_y, max_dow_y)
   }
   
+  /**
+   * Data scaled using minMax algorithm. 
+   * */
   def scaleData(data :DataFrame, min_X : Int, max_X : Int, min_Y :Int, max_Y : Int, min_dow_x :Double, max_dow_x : Double,min_dow_y : Double , max_dow_y : Double ) : DataFrame = {
        
     val range_X : Int= max_X - min_X
@@ -158,11 +167,16 @@ object task2 {
                    .withColumn("dow_x_scaled",((col("dow_x") - min_dow_x)/range_dow_x))
                    .withColumn("dow_y_scaled",((col("dow_y") - min_dow_y)/range_dow_y))
     
-    
+    //df_scaled.show(false)
     return df_scaled
   }
   
+ 
   
+  /**
+   * Data scaled back to the original scale using minMax algorithm.
+   * Only the centroids are returned. Moreover coordinates of day of the week are transformed to the respective week day.
+   * */
   def rescaleData(data :DataFrame, min_X : Int, max_X : Int, min_Y :Int, max_Y : Int, min_dow_x :Double, max_dow_x : Double,min_dow_y : Double , max_dow_y : Double) : DataFrame = {
     val range_X : Int= max_X - min_X
     val range_Y : Int= max_Y - min_Y
@@ -172,29 +186,33 @@ object task2 {
     
     
     val data_rescaled = data
-                         .groupBy("predictions")
-                         .agg(mean("X_scaled").as("x")*range_X + min_X,
-                             mean("Y_scaled").as("y")*range_Y + min_Y,
-                             mean("dow_x_scaled").as("dow_x")*range_dow_x +min_dow_x,
-                             mean("dow_y_scaled").as("dow_y")*range_dow_y +min_dow_y)  
-                             
-    val data_with_dow = data_rescaled.withColumn("dow", (atan2(col("dow_y"), col("dow_x"))*7/(2*math.Pi)))
+                         .groupBy("prediction")
+                         .agg((mean("X_scaled")*range_X + min_X).as("x"),
+                             (mean("Y_scaled")*range_Y + min_Y).as("y"),
+                             (mean("dow_x_scaled")*range_dow_x +min_dow_x).as("dow_x"),
+                             (mean("dow_y_scaled")*range_dow_y +min_dow_y).as("dow_y"))  
+    data_rescaled.show()                         
+    val data_with_dow = data_rescaled.withColumn("dow", when(atan2(col("dow_y"),col("dow_x")) > 0, atan2(col("dow_y"),col("dow_x"))*7/(2*math.Pi)).otherwise(atan2(col("dow_y"),col("dow_x"))*7/(2*math.Pi) +7))
+    data_with_dow.show()
     return data_with_dow
   }
   
-  
-  
+  /**
+   * Run the algorithm with the solution of task 1.
+   * The number of clusters used is 100.
+   * */  
   def run(spark : SparkSession) = {
-    
+    println("-------------Task2 start-----------------------")
     val df = readCSVtoDF(spark)
     val (min_X, max_X, min_Y, max_Y, min_dow_x, max_dow_x,min_dow_y, max_dow_y) = getExtremeValuesFromDF(df)
     
     val df_scaled = scaleData(df, min_X , max_X, min_Y , max_Y, min_dow_x, max_dow_x,min_dow_y, max_dow_y )
     
     
-    val clusters = kMeansClustering(df_scaled, 5)
+    val clusters = kMeansClustering(df_scaled, 100)
     
     val df_rescaled = rescaleData(clusters, min_X , max_X, min_Y , max_Y, min_dow_x, max_dow_x,min_dow_y, max_dow_y )
-    printDF(df_rescaled, "results/task2.csv")
+    printDFtoCSV(df_rescaled.select("x", "y", "dow"), "results/task2.csv")
+    println("-------------Task2 end-----------------------")
   }
 }

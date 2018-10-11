@@ -45,43 +45,41 @@ import java.io.PrintWriter
 import org.apache.spark.sql.SaveMode
 
 
-object task1 extends DFtask{
+object task1 {
   
   /**
- * Function implements the k means clustering for task 1.
- * */               
-                   
-  def kMeansClustering(data: DataFrame, n : Int, elbow : Boolean = false) : DataFrame = {
+ 	* Function implements the k means clustering for two dimensions.
+ 	* */             
+  def kMeansClustering(data: DataFrame, n : Int) : DataFrame = {
      
-    val vectorAssembler = new VectorAssembler().setInputCols(Array("X", "Y")).setOutputCol("features")                              
+    val vectorAssembler = new VectorAssembler().setInputCols(Array("X_scaled", "Y_scaled")).setOutputCol("features")                              
     val transformationPipeline = new Pipeline().setStages(Array(vectorAssembler))
-    val coordinates : DataFrame = data.select("X", "Y")                                  
+    val coordinates : DataFrame = data.select("X_scaled", "Y_scaled")                                  
     val pipeLine = transformationPipeline.fit(coordinates)
     val transformedTraining = pipeLine.transform(coordinates)
     val kmeans = new KMeans().setK(n).setSeed(1L)
     val kmModel = kmeans.fit(transformedTraining)
+    //kmModel.summary.predictions.show() 
     return kmModel.summary.predictions  
   }
   
-  def printDF(data : DataFrame, filename: String) = {
-    val header = Array("X", "Y")
+  /**
+   * Write input dataframe to csv file with path specified in filename
+   * 
+   **/  
+  def printDFtoCSV(data : DataFrame, filename: String) = {
+    val header = Array("x", "y")
     val rows = data.rdd.map( row =>   Array(row(0).toString(), row(1).toString())).collect()
     val allRows = header +: rows
     val csv = allRows.map(_.mkString(",")).mkString("\n")
-    new PrintWriter(filename) {write(csv); close()}
-    
-    /*
-    
-    data
-    .coalesce(1)
-    .write
-    .mode(SaveMode.Overwrite)
-    .format("csv")//.format("com.databricks.spark.csv")
-    .option("header", "true")    
-    .save("results/basic.csv")*/
+    new PrintWriter(filename) {write(csv); close()}  
     
   }
   
+  /**
+   * Data read from the file and dirty data removed 
+   * 
+   **/
   def readCSVtoDF(spark : SparkSession) : DataFrame = {
     val data : DataFrame  = spark.read 
                    .format("csv")
@@ -90,12 +88,18 @@ object task1 extends DFtask{
                    .option("inferSchema", "true")
                    .load("data/tieliikenneonnettomuudet_2015_onnettomuus.csv")
                    .select("X", "Y")
-                   .na.drop
+                   .na.drop //remove dirty data
     
     return data    
   }
   
-  def getExtremeValuesFromDF(data :DataFrame) : (Int, Int, Int, Int,Double,Double)  = {
+  
+  /**
+   * Return the extreme values of the columns of dataframe
+   * 
+   * 
+   **/
+  def getExtremeValuesFromDF(data :DataFrame) : (Int, Int, Int, Int)  = {
     val minMaxOfColumns = data.agg(min("X").as("min_X"), max("X").as("max_X"), 
                                    min("Y").as("min_Y"), max("Y").as("max_Y"))
   
@@ -104,43 +108,54 @@ object task1 extends DFtask{
     val min_Y : Int= minMaxOfColumns.select("min_Y").first().getInt(0)
     val max_Y : Int= minMaxOfColumns.select("max_Y").first().getInt(0)
     
-    return (min_X, max_X, min_Y, max_Y, 0, 0)
+    return (min_X, max_X, min_Y, max_Y)
   }
   
-  def scaleData(data :DataFrame, min_X : Int, max_X : Int, min_Y :Int, max_Y : Int, min_DOW : Double = 0, max_DOW : Double = 0) : DataFrame = {
+  
+  /**
+   * Data scaled using minMax algorithm. 
+   * 
+   * */
+  def scaleData(data :DataFrame, min_X : Int, max_X : Int, min_Y :Int, max_Y : Int) : DataFrame = {
        
     val range_X : Int= max_X - min_X
     val range_Y : Int= max_Y - min_Y    
     val df_scaled = data.withColumn("X_scaled",((col("X") - min_X)/range_X))
-                      .withColumn("Y_scaled",((col("Y") - min_Y)/range_Y))
-    
+                        .withColumn("Y_scaled",((col("Y") - min_Y)/range_Y))
+    df_scaled.show()
     return df_scaled
   }
   
-  
-  def rescaleData(data :DataFrame, min_X : Int, max_X : Int, min_Y :Int, max_Y : Int, min_DOW : Double = 0, max_DOW : Double = 0) : DataFrame = {
+  /**
+   * Data scaled back to the original scale using minMax algorithm.
+   * Only the centroids are returned.
+   * */
+  def rescaleData(data :DataFrame, min_X : Int, max_X : Int, min_Y :Int, max_Y : Int) : DataFrame = {
     val range_X : Int= max_X - min_X
     val range_Y : Int= max_Y - min_Y
     
     return data.groupBy("prediction")
-     .agg((mean("X")*range_X + min_X).as("x"), (mean("Y")*range_Y + min_Y).as("y")  ).drop("prediction")
-    
+     .agg((mean("X_scaled")*range_X + min_X).as("x"), (mean("Y_scaled")*range_Y + min_Y).as("y")  ).drop("prediction")    
     
   }
   
   
-  
+  /**
+   * Run the algorithm with the solution of task 1.
+   * The number of clusters used is 300.
+   * */
   def run(spark : SparkSession) = {
-    
+    println("-------------Task1 start-----------------------")
     val df = readCSVtoDF(spark)
-    val (min_X, max_X, min_Y, max_Y, _, _) = getExtremeValuesFromDF(df)
+    val (min_X, max_X, min_Y, max_Y) = getExtremeValuesFromDF(df)
     
     val df_scaled = scaleData(df, min_X , max_X, min_Y , max_Y )
     
-    val clusters = kMeansClustering(df_scaled, 5)
+    val clusters = kMeansClustering(df_scaled, 300)
     
-    val df_rescaled = rescaleData(clusters, min_X , max_X, min_Y , max_Y )
-    printDF(df_rescaled, "results/basic.csv")
+    val centroids_rescaled = rescaleData(clusters, min_X , max_X, min_Y , max_Y )
+    printDFtoCSV(centroids_rescaled, "results/basic.csv")
+    println("-------------Task1 done-----------------------")
     
   }
 }
