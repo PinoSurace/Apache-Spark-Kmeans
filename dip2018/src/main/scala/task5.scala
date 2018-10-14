@@ -222,7 +222,7 @@ object task5 {
       Array(p.x.toString(), p.y.toString(), converted)
     })
     val allRows = header +: rows
-    val csv = allRows.map(_.mkString(",")).mkString("\n")
+    val csv = allRows.map(_.mkString(";")).mkString("\n")
     new PrintWriter(filename) {write(csv); close()}
   }
   
@@ -235,7 +235,7 @@ object task5 {
       Array(point._1.toString(), point._2.x.toString(), point._2.y.toString(), converted)
     }).collect()
     val allRows = header +: rows
-    val csv = allRows.map(_.mkString(",")).mkString("\n")
+    val csv = allRows.map(_.mkString(";")).mkString("\n")
     new PrintWriter(filename) {write(csv); close()}
   }
   

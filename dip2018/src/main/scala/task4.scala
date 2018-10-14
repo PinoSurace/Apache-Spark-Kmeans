@@ -96,7 +96,7 @@ object task4 {
     val header = Array("NumOfCluster", "Cost")
     val rows = costs.map(x => Array(x._1.toString(), x._2.toString()))
     val allRows = header +: rows
-    val csv = allRows.map(_.mkString(",")).mkString("\n")
+    val csv = allRows.map(_.mkString(";")).mkString("\n")
     new PrintWriter(filename) {write(csv); close()}
   }
   

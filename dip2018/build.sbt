@@ -1,4 +1,4 @@
-name := "dip2018"
+name := "Assignment"
 
 version := "1.0"
 
