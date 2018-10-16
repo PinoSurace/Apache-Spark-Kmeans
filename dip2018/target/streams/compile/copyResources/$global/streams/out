@@ -1,0 +1,5 @@
+[0m[[0m[0mdebug[0m] [0m[0mCopy resource mappings: [0m
+[0m[[0m[0mdebug[0m] [0m[0m	(C:\Users\Pinos\dip-project\dip2018\src\main\resources\datapackage.json,C:\Users\Pinos\dip-project\dip2018\target\scala-2.11\classes\datapackage.json)[0m
+[0m[[0m[0mdebug[0m] [0m[0m	(C:\Users\Pinos\dip-project\dip2018\src\main\resources\tieliikenneonnettomuudet_2015_hlo.csv,C:\Users\Pinos\dip-project\dip2018\target\scala-2.11\classes\tieliikenneonnettomuudet_2015_hlo.csv)[0m
+[0m[[0m[0mdebug[0m] [0m[0m	(C:\Users\Pinos\dip-project\dip2018\src\main\resources\tieliikenneonnettomuudet_2015_onnettomuus.csv,C:\Users\Pinos\dip-project\dip2018\target\scala-2.11\classes\tieliikenneonnettomuudet_2015_onnettomuus.csv)[0m
+[0m[[0m[0mdebug[0m] [0m[0m	(C:\Users\Pinos\dip-project\dip2018\src\main\resources\tieliikenneonnettomuudet_2015_osallinen.csv,C:\Users\Pinos\dip-project\dip2018\target\scala-2.11\classes\tieliikenneonnettomuudet_2015_osallinen.csv)[0m

@@ -99,16 +99,7 @@ object task6 {
   /** initialize random centroids */
   def initCentroids(points: RDD[Point], number_of_clusters : Int = default_num_clusters) : Array[Point] = { 
     val randomCentroids =  points.takeSample(false, number_of_clusters) 
-    
-    /*val pointsWithIndex = points.zipWithIndex().map{case (value, index) => (index, value)} // give indexes to the Points
-    var randomCentroids = Array[Point]()
-    
-    val r = scala.util.Random
-    for (i <- 0 until number_of_clusters) {
-      val randomIdx = r.nextInt(points.count().toInt)
-      val randomPoint = pointsWithIndex.lookup(randomIdx).head
-      randomCentroids :+= randomPoint
-    }*/
+   
     
     return randomCentroids
   }
@@ -126,15 +117,7 @@ object task6 {
   def findClosestCentroid(point: Point, centroids: Array[Point]) : Int = {
     
     val bestIndex = centroids.zipWithIndex.map(centroid => (centroid._2, euclideanDistance(point, centroid._1))).minBy(_._2)._1
-    /*var bestIndex = 0
-    var closest = Double.PositiveInfinity
-    for (i <- 0 until centroids.length) {
-      val tempDist = euclideanDistance(point, centroids(i))
-      if (tempDist < closest) {
-        closest = tempDist
-        bestIndex = i
-      }
-    }*/
+ 
     return bestIndex
   }
   

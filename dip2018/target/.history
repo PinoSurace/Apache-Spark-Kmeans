@@ -10,3 +10,5 @@ evicted
 eclipse
 exit
 eclipse
+-task 1
+run -task 1

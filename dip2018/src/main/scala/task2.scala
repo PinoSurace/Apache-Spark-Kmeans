@@ -60,6 +60,7 @@ object task2 {
     val transformedTraining = pipeLine.transform(coordinates)
     val kmeans = new KMeans().setK(n).setSeed(1L)
     val kmModel = kmeans.fit(transformedTraining) 
+    
     return kmModel.summary.predictions
   }
   
@@ -118,9 +119,7 @@ object task2 {
     spark.sparkContext.parallelize(weekDays),
     StructType(weekDaysSchema)
   )  
-  //weekDaysDF.show()
-  //val prova = weekDaysDF.withColumn("dow", when(atan2(col("dow_y"),col("dow_x")) > 0, atan2(col("dow_y"),col("dow_x"))*7/(2*math.Pi)).otherwise(atan2(col("dow_y"),col("dow_x"))*7/(2*math.Pi) +7))
-  //prova.show()
+  
 /**
  * Create a dataframe with coordinates X and Y and two coordinates of day of the week
  * 
@@ -167,7 +166,7 @@ object task2 {
                    .withColumn("dow_x_scaled",((col("dow_x") - min_dow_x)/range_dow_x))
                    .withColumn("dow_y_scaled",((col("dow_y") - min_dow_y)/range_dow_y))
     
-    //df_scaled.show(false)
+    
     return df_scaled
   }
   

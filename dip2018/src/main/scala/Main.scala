@@ -49,14 +49,6 @@ import org.apache.spark.sql.SaveMode
 //import org.apache.spark.sql.SQLContext.implicits._
 //import org.apache.spark.ml.feature.Imputer
 
-
-
-
-
-
-
-
-
 object main extends App {
   
   if (args.length == 0) {

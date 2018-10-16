@@ -53,7 +53,7 @@ object task4 {
    * */
   def sumDistances2D(data: DataFrame, i : Int) : Double  = {
     println(i)
-    val pred = task1.kMeansClustering(data, i) //.groupBy("prediction").agg(mean("X").alias("avgx"), mean("Y").alias("avgy")).show
+    val pred = task1.kMeansClustering(data, i) 
     val avg : DataFrame= pred
                          .groupBy("prediction")
                          .agg(mean("X_scaled").alias("avgx"),

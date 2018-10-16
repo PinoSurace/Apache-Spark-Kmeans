@@ -59,7 +59,7 @@ object task1 {
     val transformedTraining = pipeLine.transform(coordinates)
     val kmeans = new KMeans().setK(n).setSeed(1L)
     val kmModel = kmeans.fit(transformedTraining)
-    //kmModel.summary.predictions.show() 
+    
     return kmModel.summary.predictions  
   }
   
@@ -122,7 +122,7 @@ object task1 {
     val range_Y : Int= max_Y - min_Y    
     val df_scaled = data.withColumn("X_scaled",((col("X") - min_X)/range_X))
                         .withColumn("Y_scaled",((col("Y") - min_Y)/range_Y))
-    df_scaled.show()
+    
     return df_scaled
   }
   
