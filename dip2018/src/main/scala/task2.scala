@@ -72,7 +72,7 @@ object task2 {
     val header = Array("x", "y", "dow")
     val rows = data.rdd.map( row =>   Array(row(0).toString(), row(1).toString(), row(2).toString())).collect()
     val allRows = header +: rows
-    val csv = allRows.map(_.mkString(";")).mkString("\n")
+    val csv = allRows.map(_.mkString(",")).mkString("\n")
     new PrintWriter(filename) {write(csv); close()}
     
   }
